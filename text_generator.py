@@ -136,13 +136,13 @@ def generate_text(seedword,text_len,glove_vec,words_map,id2word):
 
 
 def main():
-    batch_size,len_seq = 16, 5
+    batch_size,len_seq = 32, 50
     glove_vec = glove_l("glove.6B.50d.txt")
     words_map,id2word = wmap("glove.6B.50d.txt")
     tokens = read_data("al")
     input_tokens,input_labels = preparedata(tokens,batch_size,len_seq,glove_vec,words_map)
     rnn = rnn_model(glove_vec)
-    iteration_per_epoch = 2
+    iteration_per_epoch = 50
     tr_word, tr_opt, val_word, val_opt = batch_generator(input_tokens,input_labels)
     init = tf.initializers.global_variables()
     local_init = tf.local_variables_initializer()
@@ -150,7 +150,7 @@ def main():
     sess = tf.Session()
     sess.run(init)
     sess.run(local_init)
-    for epoch in range(5):
+    for epoch in range(100):
         epoch_error = 0
         for i in range(iteration_per_epoch):
             num = np.arange(len(tr_word))
@@ -166,7 +166,7 @@ def main():
         valid_accuracy = sess.run([rnn.acc, rnn.acc_op],{rnn.word_ids:val_word_ids,rnn.l_outputs:val_opt_ids})[1]
         print("Epoch %d, train error: %.2f, valid accuracy: %.1f %%" % (epoch, epoch_error, valid_accuracy * 100.0))
     save_path = saver.save(sess, "model.ckpt")
-    generate_text("i",13,glove_vec,words_map,id2word)
+    generate_text("when",13,glove_vec,words_map,id2word)
 
 
 
