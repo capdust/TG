@@ -8,12 +8,29 @@ import numpy as np
 import nltk
 
 
+class rnn_model:
+    def __init__(self,glove_vec):
+        self.word_ids = tf.placeholder(tf.int32, shape=[None,None])
+        self.l_outputs = tf.placeholder(tf.int32,[None,None])
+        self.glove = tf.Variable(glove_vec, dtype=tf.float32, trainable=False)
+        self.word_embedded = tf.nn.embedding_lookup(self.glove,self.word_ids)
+        self.rnn_cell = tf.nn.rnn_cell.BasicRNNCell(num_units=50)
+        self.outputs, self.state = tf.nn.dynamic_rnn(cell=self.rnn_cell, dtype = tf.float32, inputs=self.word_embedded,time_major = False)
+        self.projections = tf.layers.dense(self.outputs,len(glove_vec), activation=tf.nn.relu)
+        self.error = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.l_outputs,logits=self.projections))
+        self.opt = tf.train.AdamOptimizer()
+        self.optimizer = self.opt.minimize(self.error)
+        self.acc, self.acc_op = tf.metrics.accuracy(labels=self.l_outputs, predictions=tf.argmax(self.projections,2))
+
+
+
 def read_data(data):
     with open(data, "r") as f:
         sents = f.read()
     tokens = nltk.word_tokenize(sents)
     tokens = [t.lower() for t in tokens]
     return tokens
+
 
 
 def batching(tokens, batch_size, sequence_length):
@@ -44,6 +61,7 @@ def glove_l(file):
     return np.array(lst)
 
 
+
 def wmap(file):
     words_map = dict()
     id2word = ["**UNKNOWN**"]
@@ -55,7 +73,6 @@ def wmap(file):
         words_map[line[0]] = i+1
         id2word.append(line[0])
     return words_map,id2word
-
 
 
 
@@ -85,7 +102,6 @@ def preparedata(tokens,batch_size,len_seq,wordvec,words_map):
 
 
 
-
 def batch_generator(word,label):
     nbatch = len(word)
     arr = np.arange(nbatch)
@@ -97,21 +113,6 @@ def batch_generator(word,label):
     val_word = [word[x] for x in val]
     val_label = [label[x] for x in val]
     return train_word,train_label,val_word,val_label
-
-
-class rnn_model:
-    def __init__(self,glove_vec):
-        self.word_ids = tf.placeholder(tf.int32, shape=[None,None])
-        self.l_outputs = tf.placeholder(tf.int32,[None,None])
-        self.glove = tf.Variable(glove_vec, dtype=tf.float32, trainable=False)
-        self.word_embedded = tf.nn.embedding_lookup(self.glove,self.word_ids)
-        self.rnn_cell = tf.nn.rnn_cell.BasicRNNCell(num_units=50)
-        self.outputs, self.state = tf.nn.dynamic_rnn(cell=self.rnn_cell, dtype = tf.float32, inputs=self.word_embedded,time_major = False)
-        self.projections = tf.layers.dense(self.outputs,len(glove_vec), activation=tf.nn.relu)
-        self.error = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.l_outputs,logits=self.projections))
-        self.opt = tf.train.AdamOptimizer()
-        self.optimizer = self.opt.minimize(self.error)
-        self.acc, self.acc_op = tf.metrics.accuracy(labels=self.l_outputs, predictions=tf.argmax(self.projections,2))
 
 
 
@@ -166,6 +167,7 @@ def main():
         print("Epoch %d, train error: %.2f, valid accuracy: %.1f %%" % (epoch, epoch_error, valid_accuracy * 100.0))
     save_path = saver.save(sess, "model.ckpt")
     generate_text("i",13,glove_vec,words_map,id2word)
+
 
 
 main()
